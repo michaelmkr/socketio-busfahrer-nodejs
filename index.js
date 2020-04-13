@@ -28,6 +28,8 @@ io.on('connection', (socket) => {
         console.log("user-id " + socket.id + " joined the game as user " + socket.username);
         game.addPlayer(socket.id, name);
         let player = game.getPlayerInfo(socket.id);
+        game.addCardToPlayer(socket.id);
+        game.addCardToPlayer(socket.id);
         io.emit('update-player-info', player);
         updatePlayerInfos();
         usersChanged('joined');
@@ -57,51 +59,66 @@ io.on('connection', (socket) => {
         }
     });
 
-    // TODO debounce
     socket.on('player-get-options', () => {
         game.setCountGetOptionsRequests = game.getCountGetOptionsRequests + 1;
         if (game.getCountGetOptionsRequests === game.Players.length) {
             game.setCountGetOptionsRequests = 0;
-            switch (game.getRound) {
-                case 0: // JOINING PHASE
-                    break;
-                case 1: // ROT ODER SCHWARZ
-                    updateRoundOptions('Rot', 'Schwarz');
-                    promptNextPlayer();
-                    break;
-                case 2: // DRUNTER ODER DRÜBER
-                    updateRoundOptions('Drunter', 'Drüber');
-                    promptNextPlayer();
-                    break;
-                case 3: // INNEN ODER AUßEN
-                    updateRoundOptions('Innerhalb', 'Außerhalb');
-                    promptNextPlayer();
-                    break;
-                case 4: // hab ich, hab ich nicht
-                    updateRoundOptions('Hab ich', 'Hab ich nicht');
-                    promptNextPlayer();
-                    break;
+            switchUpdateRoundOptions();
+            if (game.getRound !== 5) {
+                promptNextPlayer();
             }
         }
     });
 
     socket.on('player-chose-option', (chosenOption) => {
-        const card = game.addCardToPlayer(socket.id);
-        const answer = game.checkCardType(card, socket.id);
-        let playerWasRight = false;
-        if (chosenOption === answer){
-            playerWasRight = true;
-        }
-        io.emit('card-was-drawn', {
-            uuid: socket.id,
-            name: socket.username,
-            chosenOption: chosenOption,
-            drawnCard: card,
-            wasRight: playerWasRight
-        });
         let player = game.getPlayerInfo(socket.id);
-        io.emit('update-player-info', player);
-        updatePlayerInfos();
+        let playerWasRight = false;
+        let card;
+        if (game.getRound < 6) {
+            if (game.getRound < 5) {
+                card = game.addCardToPlayer(socket.id);
+                const answer = game.checkCardType(card, socket.id);
+                if (chosenOption === answer) {
+                    playerWasRight = true;
+                }
+            } else if (game.getRound === 5) {
+                card = game.getLastDrawnCard;
+                playerWasRight = game.checkCardType(chosenOption, socket.id);
+            }
+            io.emit('card-was-drawn', {
+                uuid: socket.id,
+                name: socket.username,
+                chosenOption: chosenOption,
+                drawnCard: card,
+                wasRight: playerWasRight
+            });
+            io.emit('update-player-info', player);
+            updatePlayerInfos();
+        } else if (game.getRound === 6) {
+            card = game.addCardToPack();
+            const answer = game.checkCardType(card, socket.id);
+            if (chosenOption === answer) {
+                playerWasRight = true;
+                player.getCards().pop();
+            }
+            io.emit('card-was-drawn', {
+                uuid: socket.id,
+                name: socket.username,
+                chosenOption: chosenOption,
+                drawnCard: card,
+                wasRight: playerWasRight
+            });
+            io.emit('update-player-info', player);
+            updatePlayerInfos();
+            if (playerWasRight && player.getCards().length > 0) {
+                setTimeout(() => {
+                    promptNextPlayer();
+                }, 8000)
+            } else {
+                game.advancePlayerInLine();
+                promptNextPlayer();
+            }
+        }
     });
 
     socket.on('prompt-next-player', () => {
@@ -114,9 +131,6 @@ io.on('connection', (socket) => {
             io.emit('game-round-changed');
         }
     });
-
-    // TODO GIT Repository
-
 
     function updatePlayerInfos() {
         io.emit('update-player-list', game.Players);
@@ -139,22 +153,7 @@ io.on('connection', (socket) => {
         io.emit('update-player-info', player);
         updatePlayerInfos();
         usersChanged('reconnected');
-        switch (game.getRound) {
-            case 0: // JOINING PHASE
-                break;
-            case 1: // ROT ODER SCHWARZ
-                updateRoundOptions('Rot', 'Schwarz');
-                break;
-            case 2: // DRUNTER ODER DRÜBER
-                updateRoundOptions('Drunter', 'Drüber');
-                break;
-            case 3: // INNEN ODER AUßEN
-                updateRoundOptions('Innerhalb', 'Außerhalb');
-                break;
-            case 4: // hab ich, hab ich nicht
-                updateRoundOptions('Hab ich', 'Hab ich nicht');
-                break;
-        }
+        switchUpdateRoundOptions();
     }
 
     function killPlayer(uuid) {
@@ -181,9 +180,79 @@ io.on('connection', (socket) => {
     }
 
     function promptNextPlayer() {
-        const playerId = game.getNextPlayerInLine();
-        io.emit('player-prompt-interaction', playerId);
+        if (game.getRound < 6) {
+            const playerId = game.getNextPlayerInLine();
+            io.emit('player-prompt-interaction', playerId);
+        } else if (game.getRound === 6 && game.checkForBusdriver() === '') {
+            if (game.getCurrentPlayer < game.Players.length) {
+                const playerId = game.getNextPlayerInLine();
+                const player = game.getPlayerInfo(playerId);
+                if (player.getCards().length > 0) {
+                    io.emit('player-prompt-interaction', playerId);
+                }
+            } else if (game.getCurrentPlayer === game.Players.length) {
+                game.setCurrentPlayer = 0;
+                const playerId = game.getNextPlayerInLine();
+                const player = game.getPlayerInfo(playerId);
+                if (player.getCards().length > 0) {
+                    io.emit('player-prompt-interaction', playerId);
+                }
+            }
+        } else if (game.getRound === 6 && game.checkForBusdriver() !== '') {
+            console.log('Busdriver is: ' + game.checkForBusdriver());
+            game.nextRound();
+            io.emit('game-round-changed');
+        }
     }
+
+    function switchUpdateRoundOptions() {
+        switch (game.getRound) {
+            case 0: // JOINING PHASE
+                break;
+            case 1: // ROT ODER SCHWARZ
+                updateRoundOptions('Rot', 'Schwarz');
+                break;
+            case 2: // DRUNTER ODER DRÜBER
+                updateRoundOptions('Drunter', 'Drüber');
+                break;
+            case 3: // INNEN ODER AUßEN
+                updateRoundOptions('Innerhalb', 'Außerhalb');
+                break;
+            case 4: // hab ich, hab ich nicht
+                updateRoundOptions('Hab ich', 'Hab ich nicht');
+                break;
+            case 5: // H
+                if (game.getRound5CardCount < 9) {
+                    updateRound5Options();
+                    game.setRound5CardCount = game.getRound5CardCount + 1;
+                    console.log('round 5 card count: ' + game.getRound5CardCount);
+                } else if (game.getRound5CardCount === 9) {
+                    game.nextRound();
+                    io.emit('game-round-changed');
+                }
+                break;
+            case 6:
+                updateRoundOptions('Rot', 'Schwarz');
+                break;
+            case 7:
+                console.log('EIN HOCH AUF UNSERN BUSFAHRER');
+                updateRound7Options();
+                break;
+        }
+    }
+
+    function updateRound5Options() {
+        io.emit('update-round5-options', {
+            roundNumber: game.getRound,
+            drawnCard: game.addCardToPack(),
+        });
+    }
+
+    function updateRound7Options() {
+        console.log('Ein Hoch auf unsern Busfahrer');
+        io.emit('busdriver-was-chosen');
+    }
+
 });
 
 

@@ -11,10 +11,13 @@ class Game {
     cardDeck = [];
     cardPack = [];
     Players = [];
-    _round = 0;
+    _round = 5;
     _currentPlayer = 0;
     _suicideTimeout = 60000;
     _countGetOptionsRequests = 0;
+    _lastDrawnCard = '';
+    _round5CardCount = 5;
+    Busdriver = '';
 
     constructor() {
     }
@@ -61,6 +64,22 @@ class Game {
         this._countGetOptionsRequests = value;
     }
 
+    get getLastDrawnCard() {
+        return this._lastDrawnCard;
+    }
+
+    set setLastDrawnCard(value) {
+        this._lastDrawnCard = value;
+    }
+
+    get getRound5CardCount() {
+        return this._round5CardCount;
+    }
+
+    set setRound5CardCount(value) {
+        this._round5CardCount = value;
+    }
+
     shuffle(array) {
         array.sort(() => Math.random() - 0.5);
     }
@@ -68,12 +87,6 @@ class Game {
     init() {
         this.cardDeck = this.cardDeck.concat(this.standardDeck, this.standardDeck);
         this.shuffle(this.cardDeck);
-    }
-
-    logStuff() {
-        console.log("Card Deck: " + this.cardDeck);
-        console.log("Players: " + JSON.stringify(this.Players));
-        console.log("Drawn Cards: " + this.cardPack)
     }
 
     addPlayer(uuid, name) {
@@ -108,6 +121,7 @@ class Game {
     addCardToPack() {
         const card = this.drawCard();
         this.cardPack.push(this.drawCard(card));
+        this.setLastDrawnCard = card;
         return card;
     }
 
@@ -210,9 +224,9 @@ class Game {
                 const firstCardNumber = this.getCardNumber(player.cards[0].charAt(1));
                 const secondCardNumber = this.getCardNumber(player.cards[1].charAt(1));
                 const lastCardNumber = this.getCardNumber(number);
-                const max = Math.max(firstCardNumber,secondCardNumber,lastCardNumber);
-                const min = Math.min(firstCardNumber,secondCardNumber,lastCardNumber);
-                console.log(firstCardNumber,secondCardNumber,lastCardNumber);
+                const max = Math.max(firstCardNumber, secondCardNumber, lastCardNumber);
+                const min = Math.min(firstCardNumber, secondCardNumber, lastCardNumber);
+                console.log(firstCardNumber, secondCardNumber, lastCardNumber);
                 if (firstCardNumber === lastCardNumber || secondCardNumber === lastCardNumber) {
                     return 'Gleich';
                 } else if (lastCardNumber !== max && lastCardNumber !== min) {
@@ -229,15 +243,34 @@ class Game {
                 const thirdCardColor = player.cards[2].charAt(0);
                 const lastCardColor = color.charAt(0);
 
-                console.log(firstCardColor + ' ' + secondCardColor,thirdCardColor,lastCardColor);
+                console.log(firstCardColor + ' ' + secondCardColor, thirdCardColor, lastCardColor);
 
-                if (lastCardColor === firstCardColor || lastCardColor === secondCardColor || lastCardColor === thirdCardColor){
-                    console.log('hab ich')
+                if (lastCardColor === firstCardColor || lastCardColor === secondCardColor || lastCardColor === thirdCardColor) {
+                    console.log('hab ich');
                     return 'Hab ich';
                 } else {
                     return 'Hab ich nicht';
                 }
             }
+            case 5:
+                const playerOption = this.getCardNumber(number);
+                const lastDrawnNumber = this.getCardNumber(this.getLastDrawnCard.charAt(1));
+                console.log(this.getLastDrawnCard);
+                console.log(playerOption, lastDrawnNumber);
+                if (playerOption === lastDrawnNumber) {
+                    const cardIndex = player.getCards().findIndex(item => item === card);
+                    player.getCards().splice(cardIndex, 1);
+                    return true;
+                } else {
+                    return false;
+                }
+            case 6:
+                if (color === 'c' || color === 's') {
+                    return 'Schwarz';
+                } else if (color === 'd' || color === 'h') {
+                    return 'Rot';
+                }
+                break;
         }
     }
 
@@ -245,44 +278,46 @@ class Game {
         switch (number) {
             case '2':
                 return 2;
-                break;
             case '3':
                 return 3;
-                break;
             case '4':
                 return 4;
-                break;
             case '5':
                 return 5;
-                break;
             case '6':
                 return 6;
-                break;
             case '7':
                 return 7;
-                break;
             case '8':
                 return 8;
-                break;
             case '9':
                 return 9;
-                break;
             case 'x':
                 return 10;
-                break;
             case 'b':
                 return 11;
-                break;
             case 'q':
                 return 12;
-                break;
             case 'k':
                 return 13;
-                break;
             case 'a':
                 return 14;
-                break;
 
+        }
+    }
+
+    checkForBusdriver() {
+        let playersWithCards = [];
+        this.Players.forEach((player) => {
+            if (player.getCards().length > 0) {
+                playersWithCards.push(player.getUuid());
+            }
+        });
+        if (playersWithCards.length > 1) {
+            return '';
+        } else if (playersWithCards.length === 1) {
+            this.Busdriver = playersWithCards[0];
+            return playersWithCards[0];
         }
     }
 
