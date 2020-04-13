@@ -18,6 +18,7 @@ class Game {
     _lastDrawnCard = '';
     _round5CardCount = 5;
     Busdriver = '';
+    _busdriverRound = 0;
 
     constructor() {
     }
@@ -78,6 +79,14 @@ class Game {
 
     set setRound5CardCount(value) {
         this._round5CardCount = value;
+    }
+
+    get getBusdriverRound() {
+        return this._busdriverRound;
+    }
+
+    set setBusdriverRound(value) {
+        this._busdriverRound = value;
     }
 
     shuffle(array) {
@@ -318,6 +327,29 @@ class Game {
         } else if (playersWithCards.length === 1) {
             this.Busdriver = playersWithCards[0];
             return playersWithCards[0];
+        }
+    }
+
+    getNextBusdriverCard(){
+        const card = this.addCardToPack().charAt(1);
+        const cardNumber = getCardNumber(card);
+        if (cardNumber < 10){
+            return
+        }
+    }
+
+    checkIfCardIndexIsValid(cardIndex){
+        switch (this.getBusdriverRound) {
+            case 0:
+                return cardIndex === 0;
+            case 1:
+                return cardIndex === 1 || cardIndex === 2;
+            case 2:
+                return cardIndex === 3 || cardIndex === 4 || cardIndex === 5;
+            case 3:
+                return cardIndex === 6 || cardIndex === 7;
+            case 4:
+                return cardIndex === 8;
         }
     }
 

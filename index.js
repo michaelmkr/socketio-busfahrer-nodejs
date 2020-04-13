@@ -64,7 +64,7 @@ io.on('connection', (socket) => {
         if (game.getCountGetOptionsRequests === game.Players.length) {
             game.setCountGetOptionsRequests = 0;
             switchUpdateRoundOptions();
-            if (game.getRound !== 5) {
+            if (game.getRound !== 5 && game.getRound !== 7) {
                 promptNextPlayer();
             }
         }
@@ -119,6 +119,33 @@ io.on('connection', (socket) => {
                 promptNextPlayer();
             }
         }
+    });
+
+    socket.on('busdriver-chose-option', (cardIndex) => {
+        if (game.checkIfCardIndexIsValid(cardIndex)){
+            const card = game.addCardToPack();
+            const cardNumber = game.getCardNumber(card.charAt(1));
+            let playerWasRight = false;
+            console.log(cardNumber);
+            if (cardNumber < 10){
+                playerWasRight = true;
+                game.setBusdriverRound = game.getBusdriverRound + 1;
+            }
+            io.emit('drivercard-was-drawn', {
+                uuid: socket.id,
+                name: socket.username,
+                chosenOption: cardIndex,
+                drawnCard: card,
+                wasRight: playerWasRight
+            });
+            if (!playerWasRight){
+                game.setBusdriverRound = 0;
+            }
+        }
+    });
+
+    socket.on('busdriver-start-over', ()=> {
+        updateRound7Options()
     });
 
     socket.on('prompt-next-player', () => {
@@ -202,6 +229,9 @@ io.on('connection', (socket) => {
             console.log('Busdriver is: ' + game.checkForBusdriver());
             game.nextRound();
             io.emit('game-round-changed');
+        } else if (game.getRound === 7) {
+            const playerId = game.checkForBusdriver();
+            io.emit('player-prompt-interaction', playerId);
         }
     }
 
@@ -235,7 +265,6 @@ io.on('connection', (socket) => {
                 updateRoundOptions('Rot', 'Schwarz');
                 break;
             case 7:
-                console.log('EIN HOCH AUF UNSERN BUSFAHRER');
                 updateRound7Options();
                 break;
         }
@@ -249,8 +278,12 @@ io.on('connection', (socket) => {
     }
 
     function updateRound7Options() {
-        console.log('Ein Hoch auf unsern Busfahrer');
-        io.emit('busdriver-was-chosen');
+        io.emit('update-busdriver-options', {
+            roundNumber: game.getRound,
+            drivingRound: game.getBusdriverRound,
+            busdriver: game.Busdriver,
+            message: 'Und von vorne..',
+        });
     }
 
 });
