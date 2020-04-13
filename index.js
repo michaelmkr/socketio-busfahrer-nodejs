@@ -28,8 +28,6 @@ io.on('connection', (socket) => {
         console.log("user-id " + socket.id + " joined the game as user " + socket.username);
         game.addPlayer(socket.id, name);
         let player = game.getPlayerInfo(socket.id);
-        game.addCardToPlayer(socket.id);
-        game.addCardToPlayer(socket.id);
         io.emit('update-player-info', player);
         updatePlayerInfos();
         usersChanged('joined');
