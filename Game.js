@@ -2,28 +2,28 @@ const Player = require('./Player.js');
 
 class Game {
 
-    standardDeck = [
-        'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'h8', 'h9', 'hx', 'hb', 'hq', 'hk', 'ha',
-        'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd8', 'd9', 'dx', 'db', 'dq', 'dk', 'da',
-        'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c8', 'c9', 'cx', 'cb', 'cq', 'ck', 'ca',
-        's2', 's3', 's4', 's5', 's6', 's7', 's8', 's8', 's9', 'sx', 'sb', 'sq', 'sk', 'sa',
-    ];
-    cardDeck = [];
-    cardPack = [];
-    Players = [];
-    _round = 5;
-    _currentPlayer = 0;
-    _suicideTimeout = 60000;
-    _countGetOptionsRequests = 0;
-    _lastDrawnCard = '';
-    _round5CardCount = 5;
-    Busdriver = '';
-    _busdriverRound = 0;
-
     constructor() {
+        this.standardDeck = [
+            'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'h8', 'h9', 'hx', 'hb', 'hq', 'hk', 'ha',
+            'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd8', 'd9', 'dx', 'db', 'dq', 'dk', 'da',
+            'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c8', 'c9', 'cx', 'cb', 'cq', 'ck', 'ca',
+            's2', 's3', 's4', 's5', 's6', 's7', 's8', 's8', 's9', 'sx', 'sb', 'sq', 'sk', 'sa',
+        ];
+        this.cardDeck = [];
+        this.cardPack = [];
+        this.Players = [];
+        this._round = 0;
+        this._currentPlayer = 0;
+        this._suicideTimeout = 60000;
+        this._countGetOptionsRequests = 0;
+        this._lastDrawnCard = '';
+        this._round5CardCount = 0;
+        this.Busdriver = '';
+        this._busdriverRound = 0;
+        this._readyCount = 0;
     }
 
-    _readyCount = 0;
+
 
     get readyCount() {
         return this._readyCount;
