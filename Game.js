@@ -330,14 +330,6 @@ class Game {
         }
     }
 
-    getNextBusdriverCard(){
-        const card = this.addCardToPack().charAt(1);
-        const cardNumber = getCardNumber(card);
-        if (cardNumber < 10){
-            return
-        }
-    }
-
     checkIfCardIndexIsValid(cardIndex){
         switch (this.getBusdriverRound) {
             case 0:
