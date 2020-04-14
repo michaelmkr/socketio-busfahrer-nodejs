@@ -148,6 +148,9 @@ io.on('connection', (socket) => {
                 wasRight: playerWasRight,
                 slugCounter: game.getBusdriverRound + 1
             });
+            if (game.getBusdriverRound === 4 && playerWasRight){
+                io.emit('game-is-finished');
+            }
             if (!playerWasRight) {
                 game.setBusdriverRound = 0;
             }
