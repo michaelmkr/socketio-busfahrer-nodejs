@@ -1,4 +1,11 @@
 class Player {
+    get getRound7RightCardCount() {
+        return this._round7RightCardCount;
+    }
+
+    set setRound7RightCardCount(value) {
+        this._round7RightCardCount = value;
+    }
     set setStatus(value) {
         this.status = value;
     }
@@ -16,6 +23,7 @@ class Player {
         this.cards = [];
         this.status = 'online';
         this._killable = false;
+        this._round7RightCardCount = 0;
     }
 
     getUuid(){
@@ -32,6 +40,11 @@ class Player {
 
     addCard(card){
         this.cards.push(card);
+    }
+
+    hasFinished(){
+        console.log(this.name + 'has finished the game!');
+        this.cards = [];
     }
 
 }

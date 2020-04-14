@@ -110,6 +110,7 @@ class Game {
     nextRound() {
         this.setRound = this.getRound + 1;
         this.setCurrentPlayer = 0;
+        this.setReadyCount = 0;
         console.log("RUNDE NUMMER " + this.getRound);
     }
 

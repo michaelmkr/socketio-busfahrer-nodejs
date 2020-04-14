@@ -28,7 +28,7 @@ io.on('connection', (socket) => {
         console.log("user-id " + socket.id + " joined the game as user " + socket.username);
         game.addPlayer(socket.id, name);
         let player = game.getPlayerInfo(socket.id);
-        io.emit('update-player-info', player);
+        socket.emit('update-player-info', player);
         updatePlayerInfos();
         usersChanged('joined');
     });
@@ -48,7 +48,7 @@ io.on('connection', (socket) => {
     socket.on('user-is-ready', () => {
         game.changeUserStatus(socket.id, 'ready');
         let player = game.getPlayerInfo(socket.id);
-        io.emit('update-player-info', player);
+        socket.emit('update-player-info', player);
         updatePlayerInfos();
         const playersReady = game.checkIfPlayersAreReady();
         if (playersReady) {
@@ -90,14 +90,14 @@ io.on('connection', (socket) => {
                 drawnCard: card,
                 wasRight: playerWasRight
             });
-            io.emit('update-player-info', player);
+            socket.emit('update-player-info', player);
             updatePlayerInfos();
         } else if (game.getRound === 6) {
             card = game.addCardToPack();
             const answer = game.checkCardType(card, socket.id);
             if (chosenOption === answer) {
                 playerWasRight = true;
-                player.getCards().pop();
+                player.setRound7RightCardCount = player.getRound7RightCardCount + 1;
             }
             io.emit('card-was-drawn', {
                 uuid: socket.id,
@@ -106,26 +106,37 @@ io.on('connection', (socket) => {
                 drawnCard: card,
                 wasRight: playerWasRight
             });
-            io.emit('update-player-info', player);
+            socket.emit('update-player-info', player);
             updatePlayerInfos();
-            if (playerWasRight && player.getCards().length > 0) {
+            if (playerWasRight && player.getCards().length > 0 && player.getRound7RightCardCount < player.getCards().length) {
                 setTimeout(() => {
                     promptNextPlayer();
-                }, 8000)
-            } else {
+                }, 8000);
+            } else if (playerWasRight && player.getCards().length > 0 && player.getRound7RightCardCount === player.getCards().length) {
+                player.hasFinished();
+                updatePlayerInfos();
                 game.advancePlayerInLine();
-                promptNextPlayer();
+                setTimeout(() => {
+                    promptNextPlayer();
+                }, 8000);
+            } else if (!playerWasRight || player.getCards().length === 0) {
+                io.emit('round6-slug-count', player.getRound7RightCardCount + 1);
+                player.setRound7RightCardCount = 0;
+                game.advancePlayerInLine();
+                setTimeout(() => {
+                    promptNextPlayer();
+                }, 8000);
             }
         }
     });
 
     socket.on('busdriver-chose-option', (cardIndex) => {
-        if (game.checkIfCardIndexIsValid(cardIndex)){
+        if (game.checkIfCardIndexIsValid(cardIndex)) {
             const card = game.addCardToPack();
             const cardNumber = game.getCardNumber(card.charAt(1));
             let playerWasRight = false;
             console.log(cardNumber);
-            if (cardNumber < 10){
+            if (cardNumber < 10) {
                 playerWasRight = true;
                 game.setBusdriverRound = game.getBusdriverRound + 1;
             }
@@ -134,15 +145,16 @@ io.on('connection', (socket) => {
                 name: socket.username,
                 chosenOption: cardIndex,
                 drawnCard: card,
-                wasRight: playerWasRight
+                wasRight: playerWasRight,
+                slugCounter: game.getBusdriverRound + 1
             });
-            if (!playerWasRight){
+            if (!playerWasRight) {
                 game.setBusdriverRound = 0;
             }
         }
     });
 
-    socket.on('busdriver-start-over', ()=> {
+    socket.on('busdriver-start-over', () => {
         updateRound7Options()
     });
 
@@ -157,6 +169,15 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('kicked-players-turn', () => {
+            if (game.readyCount < this.Players.length){
+                game.setReadyCount = game.readyCount + 1;
+            } else if (game.readyCount === this.Players.length){
+                promptNextPlayer();
+                game.setReadyCount = 0;
+            }
+    });
+
     function updatePlayerInfos() {
         io.emit('update-player-list', game.Players);
     }
@@ -169,16 +190,19 @@ io.on('connection', (socket) => {
         console.log("user-id " + uuid + " reconnected");
 
         game.setPlayerKillable(uuid, false);
-        game.changeUserStatus(uuid, 'online');
+        game.changeUserStatus(uuid, 'ready');
 
         let player = game.getPlayerInfo(uuid);
         socket.id = uuid;
         socket.username = player.name;
         console.log("user reconnected as " + socket.username);
-        io.emit('update-player-info', player);
+        socket.emit('update-player-info', player);
         updatePlayerInfos();
         usersChanged('reconnected');
         switchUpdateRoundOptions();
+        if (game.getCurrentPlayer === game.getPlayerIndex(uuid) && game.getRound > 0 && game.getRound !== 5) {
+            promptNextPlayer();
+        }
     }
 
     function killPlayer(uuid) {
@@ -187,8 +211,10 @@ io.on('connection', (socket) => {
             console.log('Player ' + uuid + ' killed');
             usersChanged('killed');
             updatePlayerInfos();
-            if (game.getCurrentPlayer > 0 && game.getRound > 0) {
-                game.setCurrentPlayer = game.getCurrentPlayer - 1
+            if (game.getRound > 0 && game.getCurrentPlayer > 0 && game.getCurrentPlayer !== game.Players.length) {
+                game.setCurrentPlayer = game.getCurrentPlayer - 1;
+            } else  if (game.getRound > 0 && game.getCurrentPlayer > 0 && game.getCurrentPlayer === game.Players.length) {
+                game.setCurrentPlayer = 0;
             }
         } else {
             console.log('Player was not killed. ' + uuid + ' reconnected in time or has already been killed');
@@ -214,15 +240,24 @@ io.on('connection', (socket) => {
                 const player = game.getPlayerInfo(playerId);
                 if (player.getCards().length > 0) {
                     io.emit('player-prompt-interaction', playerId);
+                } else if (player.getCards().length === 0) {
+                    game.advancePlayerInLine();
+                    promptNextPlayer()
                 }
+                // TODO else if oberbei war zum test ist unterbei nochmal
+                // TODO advance player in line  if cards === 0 ???
             } else if (game.getCurrentPlayer === game.Players.length) {
                 game.setCurrentPlayer = 0;
                 const playerId = game.getNextPlayerInLine();
                 const player = game.getPlayerInfo(playerId);
                 if (player.getCards().length > 0) {
                     io.emit('player-prompt-interaction', playerId);
+                } else if (player.getCards().length === 0) {
+                    game.advancePlayerInLine();
+                    promptNextPlayer()
                 }
             }
+            // TODO something here is missing
         } else if (game.getRound === 6 && game.checkForBusdriver() !== '') {
             console.log('Busdriver is: ' + game.checkForBusdriver());
             game.nextRound();
