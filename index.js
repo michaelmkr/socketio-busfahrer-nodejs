@@ -4,7 +4,10 @@ const io = require('socket.io')(http);
 const port = process.env.PORT || 3000;
 
 const Game = require('./Game.js');
-
+const namespace = 'test';
+// const namespace = Math.random().toString(36).substring(2, 6) + Math.random().toString(36).substring(2, 6);
+console.log(namespace);
+console.log(typeof namespace);
 app.get('/', function (req, res) {
     res.sendFile(__dirname + '/index.html');
 });
@@ -12,6 +15,9 @@ app.get('/', function (req, res) {
 const game = new Game();
 game.init();
 
+// TODO replace io with nsp
+const nsp = io.of(namespace);
+// nsp.on('connection', (socket) => {
 io.on('connection', (socket) => {
 
     socket.on('user-connect', (uuid) => {
@@ -28,6 +34,7 @@ io.on('connection', (socket) => {
         console.log("user-id " + socket.id + " joined the game as user " + socket.username);
         game.addPlayer(socket.id, name);
         let player = game.getPlayerInfo(socket.id);
+        game.addCardToPlayer(socket.id);
         socket.emit('update-player-info', player);
         updatePlayerInfos();
         usersChanged('joined');
@@ -148,7 +155,7 @@ io.on('connection', (socket) => {
                 wasRight: playerWasRight,
                 slugCounter: game.getBusdriverRound + 1
             });
-            if (game.getBusdriverRound === 4 && playerWasRight){
+            if (game.getBusdriverRound === 4 && playerWasRight) {
                 io.emit('game-is-finished');
             }
             if (!playerWasRight) {
@@ -173,12 +180,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('kicked-players-turn', () => {
-            if (game.readyCount < this.Players.length){
-                game.setReadyCount = game.readyCount + 1;
-            } else if (game.readyCount === this.Players.length){
-                promptNextPlayer();
-                game.setReadyCount = 0;
-            }
+        if (game.readyCount < this.Players.length) {
+            game.setReadyCount = game.readyCount + 1;
+        } else if (game.readyCount === this.Players.length) {
+            promptNextPlayer();
+            game.setReadyCount = 0;
+        }
     });
 
     function updatePlayerInfos() {
@@ -216,7 +223,7 @@ io.on('connection', (socket) => {
             updatePlayerInfos();
             if (game.getRound > 0 && game.getCurrentPlayer > 0 && game.getCurrentPlayer !== game.Players.length) {
                 game.setCurrentPlayer = game.getCurrentPlayer - 1;
-            } else  if (game.getRound > 0 && game.getCurrentPlayer > 0 && game.getCurrentPlayer === game.Players.length) {
+            } else if (game.getRound > 0 && game.getCurrentPlayer > 0 && game.getCurrentPlayer === game.Players.length) {
                 game.setCurrentPlayer = 0;
             }
         } else {
@@ -233,8 +240,9 @@ io.on('connection', (socket) => {
         });
     }
 
+    //TODO fires too soon
     function promptNextPlayer() {
-        if (game.getRound < 6) {
+        if (game.getRound < 5) {
             const playerId = game.getNextPlayerInLine();
             io.emit('player-prompt-interaction', playerId);
         } else if (game.getRound === 6 && game.checkForBusdriver() === '') {
@@ -247,8 +255,6 @@ io.on('connection', (socket) => {
                     game.advancePlayerInLine();
                     promptNextPlayer()
                 }
-                // TODO else if oberbei war zum test ist unterbei nochmal
-                // TODO advance player in line  if cards === 0 ???
             } else if (game.getCurrentPlayer === game.Players.length) {
                 game.setCurrentPlayer = 0;
                 const playerId = game.getNextPlayerInLine();
@@ -293,6 +299,7 @@ io.on('connection', (socket) => {
                     game.setRound5CardCount = game.getRound5CardCount + 1;
                     console.log('round 5 card count: ' + game.getRound5CardCount);
                 } else if (game.getRound5CardCount === 9) {
+                    game.setCurrentPlayer = 0;
                     game.nextRound();
                     io.emit('game-round-changed');
                 }
