@@ -2,8 +2,7 @@ const Game = require('./Game.js');
 
 class Lobby {
 
-    constructor(id, nsp) {
-        this.id = id;
+    constructor(nsp) {
         this.nsp = nsp;
         this.game = new Game();
     }
@@ -31,7 +30,6 @@ class Lobby {
                 socket.emit('update-player-info', player);
                 updatePlayerInfos();
                 usersChanged('joined');
-                console.log(nsp.clients().server.connected)
             });
 
             socket.on('disconnect', function () {

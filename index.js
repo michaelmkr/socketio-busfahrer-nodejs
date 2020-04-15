@@ -10,8 +10,9 @@ io.on('connection', (socket) => {
         const nspString = Math.random().toString(36).substring(2, 6) + Math.random().toString(36).substring(2, 6);
         const namespace = io.of(nspString);
         console.log('creating new lobby: ' + nspString);
-        const lobby = new Lobby(123, namespace);
+        const lobby = new Lobby(namespace);
         lobby.listen();
+        io.emit('lobby-was-created', nspString);
     });
 });
 
